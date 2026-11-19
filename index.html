@@ -82,7 +82,7 @@
         description: "仰望宇宙，也惦念着归途。时间、引力与爱，在星际之间交织成一场难忘的旅程。",
         detail: "INTERSTELLAR · 2014",
         symbol: "✦",
-        cover: "covers/space.svg",
+        cover: "space.svg",
         keywords: ["宇宙", "星际", "时间", "引力", "爱", "归途"]
       },
       {
@@ -91,7 +91,7 @@
         description: "熟悉的旋律一响起，就像和旧时光再次相逢。把此刻珍藏，也期待下一次相聚。",
         detail: "A SONG TO REMEMBER",
         symbol: "♫",
-        cover: "covers/song-cover.png",
+        cover: "song-cover.png",
         keywords: ["音乐", "旋律", "歌曲", "熟悉", "怀旧", "相聚"]
       }
     ];
@@ -108,8 +108,8 @@
     favorites = favorites.map((item) => ({
       ...item,
       id: item.id || crypto.randomUUID(),
-      cover: item.cover || (item.title.includes("星际穿越") ? "covers/space.svg" :
-        item.title.includes("难忘今宵") ? "covers/song-cover.png" : "")
+      cover: item.title.includes("星际穿越") ? "space.svg" :
+        item.title.includes("难忘今宵") ? "song-cover.png" : (item.cover || "")
     }));
     localStorage.setItem("tai-nei-peng-favorites", JSON.stringify(favorites));
     let watchlist;
