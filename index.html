@@ -24,7 +24,7 @@
     .recommend{margin:0 0 76px;padding:25px;border:1px solid rgba(255,79,200,.32);background:linear-gradient(135deg,rgba(255,79,200,.08),rgba(17,19,41,.8))}.recommend h2{font-size:22px;margin:8px 0}.recommend-intro{margin:0 0 16px;color:var(--muted);font-size:13px}.recommend-form{display:flex;gap:10px}.recommend-form input{flex:1;min-width:0;padding:12px 14px;border:1px solid var(--line);outline:0;background:#0b0d20;color:#fff;font:14px 'Noto Sans SC',sans-serif}.recommend-form input:focus{border-color:var(--cyan)}.recommend-form button{padding:0 18px;border:1px solid var(--cyan);background:rgba(86,246,255,.1);color:var(--cyan);font:11px 'Noto Sans SC',sans-serif;cursor:pointer}.recommend-result{min-height:24px;margin-top:16px;color:#f4f4ff;font-size:14px;line-height:1.8}.recommend-result strong{color:var(--cyan)}
     .add-form{display:grid;grid-template-columns:150px 1fr 1.5fr auto;gap:10px;margin:0 0 18px;padding:16px;border:1px solid rgba(255,79,200,.25);background:rgba(17,19,41,.68)}.add-form input,.add-form select{min-width:0;padding:12px;border:1px solid var(--line);outline:0;background:#0b0d20;color:#f4f4ff;font:13px 'Noto Sans SC',sans-serif}.add-form input:focus,.add-form select:focus{border-color:var(--cyan)}.add-form button{padding:0 18px;border:1px solid var(--pink);background:rgba(255,79,200,.12);color:#fff;font:11px Orbitron,'Noto Sans SC',sans-serif;letter-spacing:.08em;cursor:pointer}.add-form button:hover{background:rgba(255,79,200,.28)}.form-message{min-height:20px;margin:-9px 0 15px;color:#a7ffcf;font-size:12px}
     .category-filters{display:flex;gap:8px;margin:0 0 14px}.category-filter{padding:8px 14px;border:1px solid var(--line);background:rgba(17,19,41,.75);color:var(--muted);font:12px 'Noto Sans SC',sans-serif;cursor:pointer}.category-filter:hover,.category-filter.is-active{border-color:var(--cyan);color:var(--cyan);background:rgba(86,246,255,.1)}
-    .export-button{margin:0 0 18px;padding:9px 13px;border:1px solid rgba(86,246,255,.45);background:rgba(86,246,255,.08);color:var(--cyan);font:11px 'Noto Sans SC',sans-serif;cursor:pointer}.export-button:hover{background:rgba(86,246,255,.18);color:#fff}
+    .backup-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}.export-button{padding:9px 13px;border:1px solid rgba(86,246,255,.45);background:rgba(86,246,255,.08);color:var(--cyan);font:11px 'Noto Sans SC',sans-serif;cursor:pointer}.export-button:hover{background:rgba(86,246,255,.18);color:#fff}
     .note{margin:76px 0 72px;padding:24px 28px;border-left:2px solid var(--pink);background:linear-gradient(90deg,rgba(255,79,200,.08),transparent);color:#c1c5dc;line-height:1.8}.note b{color:#fff}.footer{border-top:1px solid var(--line);padding:23px 0 30px;display:flex;justify-content:space-between;color:#727995;font:10px Orbitron,sans-serif;letter-spacing:.12em}.footer .glow{color:var(--pink)}
     @media(max-width:650px){.wrap{width:min(100% - 30px,500px)}.topbar{height:64px}.hero{min-height:520px;padding:70px 0}.hero p{font-size:14px}.coordinates{position:static;text-align:left;margin-top:36px}.cards{grid-template-columns:1fr}.add-form{grid-template-columns:1fr}.add-form button{min-height:44px}.card{min-height:245px}.section-head span{font-size:8px}.note{margin:54px 0}.footer{gap:15px;flex-wrap:wrap}}
     @media(max-width:650px){.recommend-form{flex-direction:column}.recommend-form button{min-height:44px}.recommend{margin-bottom:54px}}
@@ -50,7 +50,11 @@
         <div class="form-actions"><button id="saveFavoriteButton" type="submit">＋ 添加收藏</button><button class="cancel-edit" id="cancelEditButton" type="button" hidden>取消</button></div>
       </form>
       <p class="form-message" id="formMessage" aria-live="polite"></p>
-      <button class="export-button" id="exportDataButton" type="button">下载收藏备份（JSON）</button>
+      <div class="backup-actions">
+        <button class="export-button" id="exportDataButton" type="button">下载收藏备份（JSON）</button>
+        <button class="export-button" id="importDataButton" type="button">从 JSON 恢复</button>
+        <input id="importDataFile" type="file" accept=".json,application/json" hidden>
+      </div>
       <div class="category-filters" id="categoryFilters" aria-label="按类型筛选">
         <button class="category-filter is-active" type="button" data-filter="all" aria-pressed="true">全部</button>
         <button class="category-filter" type="button" data-filter="FILM" aria-pressed="false">电影</button>
@@ -148,6 +152,8 @@
     const queueCount = document.querySelector("#queueCount");
     const toolTrace = document.querySelector("#toolTrace");
     const exportDataButton = document.querySelector("#exportDataButton");
+    const importDataButton = document.querySelector("#importDataButton");
+    const importDataFile = document.querySelector("#importDataFile");
     function saveFavorites() {
       localStorage.setItem("tai-nei-peng-favorites", JSON.stringify(favorites));
     }
@@ -174,6 +180,66 @@
       link.click();
       URL.revokeObjectURL(downloadUrl);
       formMessage.textContent = "备份文件已开始下载。";
+    });
+
+    // 只接受包含收藏与待看数组、且每条记录有标题和类型的备份文件。
+    function isValidBackupItem(item) {
+      return item !== null && typeof item === "object" && !Array.isArray(item) &&
+        typeof item.title === "string" && typeof item.type === "string" &&
+        typeof item.description === "string";
+    }
+
+    function isValidBackup(backup) {
+      return backup !== null && typeof backup === "object" &&
+        Array.isArray(backup.favorites) && backup.favorites.every(isValidBackupItem) &&
+        Array.isArray(backup.watchlist) && backup.watchlist.every(isValidBackupItem);
+    }
+
+    importDataButton.addEventListener("click", () => importDataFile.click());
+    importDataFile.addEventListener("change", async () => {
+      const file = importDataFile.files?.[0];
+      if (!file) return;
+
+      try {
+        const backup = JSON.parse(await file.text());
+        if (!isValidBackup(backup)) {
+          throw new Error("Invalid backup structure");
+        }
+        const confirmed = window.confirm(
+          `这会用备份替换当前的 ${favorites.length} 条收藏和 ${watchlist.length} 条待看项目。继续吗？`
+        );
+        if (!confirmed) return;
+
+        favorites = backup.favorites.map((item) => ({
+          ...item,
+          id: typeof item.id === "string" && item.id ? item.id : crypto.randomUUID()
+        }));
+        const favoritesById = new Map(favorites.map((item) => [item.id, item]));
+        const restoredIds = new Set();
+        watchlist = backup.watchlist
+          .filter((item) => {
+            if (!favoritesById.has(item.id) || restoredIds.has(item.id)) return false;
+            restoredIds.add(item.id);
+            return true;
+          })
+          .map((item) => favoritesById.get(item.id));
+
+        saveFavorites();
+        saveWatchlist();
+        searchInput.value = "";
+        selectedCategory = "all";
+        categoryFilters.querySelectorAll(".category-filter").forEach((button) => {
+          const isActive = button.dataset.filter === "all";
+          button.classList.toggle("is-active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+        renderFilteredFavorites();
+        formMessage.textContent = `恢复完成：${favorites.length} 条收藏，${watchlist.length} 条待看项目。`;
+      } catch {
+        formMessage.textContent = "读取失败：请选择有效的太内捧 JSON 备份文件。";
+      } finally {
+        importDataFile.value = "";
+      }
     });
 
     function renderWatchlist() {
